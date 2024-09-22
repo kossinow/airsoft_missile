@@ -1,6 +1,7 @@
 /*
-Смотрим на каком азимуте замкнут контакт, шлем эту информацию на бункер,
-бункер присылает информацию об успешном введении кода, подаем питание на контакт запуска
+Принимает запрос от бункера, отправялет в ответ состояние пинов азимутов и активирует пуск ракет.
+Отвечает: 0 - никакой азиимут не выставлен, 1-1, 2-2, 3-3
+В режиме ожидания обычно принимает false, для подрыва отправить true.
 */
 
 #include <SPI.h>
@@ -18,13 +19,13 @@
 #define led 6
 
 // D9-D13 заняты радиомодулем
-# define CLI 9
-# define CLO 10
+# define CE 9
+# define CSN 10
 
-RF24 radio(9, 10);  // "создать" модуль на пинах 9 и 10
+RF24 radio(CE, CSN);  // "создать" модуль на пинах 9 и 10
 
+byte pipeNo;
 byte address[][6] = {"1Node", "2Node"}; //возможные номера труб
-int pin_condition[3];
 int message;
 
 void setup() {
@@ -43,34 +44,46 @@ void setup() {
     delay(50);
     digitalWrite(led, 1);
   }
-  radio.setPALevel (RF24_PA_LOW); // уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
-  radio.setPayloadSize(sizeof(pin_condition)); // размер пакета, в байтах 4
-  radio.openReadingPipe(1, address[0]);   // хотим слушать трубу 0
-  radio.startListening();  // слушаем радиоэфир, мы приемник
+
+  radio.setAutoAck(1);
+  radio.setRetries(0, 15);
+  radio.enableAckPayload();
+  radio.enableDynamicPayloads();
+  radio.setPayloadSize(2);
+  radio.setChannel(0x60);
+  radio.setDataRate(RF24_1MBPS);
+  radio.setPALevel (RF24_PA_LOW);
+  radio.openReadingPipe(1, address[0]);
+  radio.startListening();
 
 }
 
 void loop() {
-  byte pipeNo;
-  while (radio.available(&pipeNo)) {        // слушаем эфир со всех труб
-    radio.read(&message, sizeof(message));  // чиатем входящий сигнал
 
-    if (message == 1) { // если получили 1, отправляем состояние пинов азимутов
-      digitalWrite(led, 0);
-      bool pin_condition[3] = {digitalRead(azimuth_1), digitalRead(azimuth_2), digitalRead(azimuth_3)};
-      // переходим в режим вещания
-      radio.write(&pin_condition, sizeof(pin_condition));
-      // слушаем
-      digitalWrite(led, 1);
-      message = 0;
-    }
-    else if (message == 2) { // если получили 2, запускаем ракеты
+  if (radio.available(&pipeNo)) { // если что-то пришло на радиоканал
+    radio.read(&message, sizeof(message));  // чиатем входящий сигнал
+    int report = wich_azimuth();
+    radio.writeAckPayload(pipeNo, &report, sizeof(report));
+
+    if (message) { // если получили true - взрываем
       digitalWrite(fire_pin, 1);
-      delay(2000);
+      delay(1000);
       digitalWrite(fire_pin, 0);
-      message = 0;
     }
   }
+}
 
-
+int wich_azimuth(){ // возвращает номер активированного азимута
+  if (digitalRead(azimuth_1) == HIGH) {
+    return 1;
+  }
+  else if (digitalRead(azimuth_2) == HIGH) {
+    return 2;
+  }
+  else if (digitalRead(azimuth_3) == HIGH) {
+    return 3;
+  }
+  else {
+    return 0;
+  }
 }
