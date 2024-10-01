@@ -4,7 +4,7 @@
 В режиме ожидания обычно принимает false, для подрыва отправить true.
 */
 
-#include <SPI.h>
+#include "SPI.h"
 #include "RF24.h"
 
 // D2-D4 контакты азимутов
@@ -15,8 +15,9 @@
 // D5 контакт электроподжига
 #define fire_pin 5
 
-// D6 светодиод
-#define led 6
+// D6, D7 светодиоды
+#define led_red 6
+#define led_green 7
 
 // D9-D13 заняты радиомодулем
 # define CE 9
@@ -31,7 +32,8 @@ int message;
 void setup() {
   Serial.begin(9600);
 
-  pinMode(led, OUTPUT);
+  pinMode(led_red, OUTPUT);
+  pinMode(led_green, OUTPUT);
   pinMode(fire_pin, OUTPUT);
   pinMode(azimuth_1, INPUT_PULLUP);
   pinMode(azimuth_2, INPUT_PULLUP);
@@ -40,9 +42,9 @@ void setup() {
   while (!radio.begin()) {// ждем инициализацию радио
     Serial.println("radio hardware is not responding!!");
     delay(50);
-    digitalWrite(led, 0);
+    digitalWrite(led_red, 0);
     delay(50);
-    digitalWrite(led, 1);
+    digitalWrite(led_red, 1);
   }
 
   radio.setAutoAck(1);
@@ -70,6 +72,15 @@ void loop() {
       delay(1000);
       digitalWrite(fire_pin, 0);
     }
+  }
+
+  if (wich_azimuth()) { // индикация светодиодами наведения на азимут
+    digitalWrite(led_red, 0);
+    digitalWrite(led_green, 1);
+  }
+  else {
+    digitalWrite(led_green, 0);
+    digitalWrite(led_red, 1);
   }
 }
 
