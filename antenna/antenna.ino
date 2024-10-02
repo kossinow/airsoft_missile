@@ -28,6 +28,7 @@ RF24 radio(CE, CSN);  // "создать" модуль на пинах 9 и 10
 byte pipeNo;
 byte address[][6] = {"1Node", "2Node"}; //возможные номера труб
 int message;
+long switch_off;
 
 void setup() {
   Serial.begin(9600);
@@ -40,7 +41,7 @@ void setup() {
   pinMode(azimuth_3, INPUT_PULLUP);
 
   while (!radio.begin()) {// ждем инициализацию радио
-    Serial.println("radio hardware is not responding!!");
+    Serial.println("radio hardware is not responding!");
     delay(50);
     digitalWrite(led_red, 0);
     delay(50);
@@ -51,30 +52,39 @@ void setup() {
   radio.setRetries(0, 15);
   radio.enableAckPayload();
   radio.enableDynamicPayloads();
-  radio.setPayloadSize(2);
+  radio.setPayloadSize(2); // int размером 2 байта
   radio.setChannel(0x60);
   radio.setDataRate(RF24_1MBPS);
   radio.setPALevel (RF24_PA_LOW);
   radio.openReadingPipe(1, address[0]);
   radio.startListening();
+  Serial.println("setup done");
 
 }
 
 void loop() {
+  int report = wich_azimuth();
 
   if (radio.available(&pipeNo)) { // если что-то пришло на радиоканал
     radio.read(&message, sizeof(message));  // чиатем входящий сигнал
-    int report = wich_azimuth();
+    Serial.print("Got: ");
+    Serial.println(message);
     radio.writeAckPayload(pipeNo, &report, sizeof(report));
+    Serial.print("Sent: ");
+    Serial.println(report);
 
     if (message) { // если получили true - взрываем
       digitalWrite(fire_pin, 1);
-      delay(1000);
-      digitalWrite(fire_pin, 0);
+      switch_off = millis();
+
     }
   }
 
-  if (wich_azimuth()) { // индикация светодиодами наведения на азимут
+  if (millis() - switch_off > 1000) {
+    digitalWrite(fire_pin, 0);
+  }
+
+  if (wich_azimuth() != 0) { // индикация светодиодами наведения на азимут
     digitalWrite(led_red, 0);
     digitalWrite(led_green, 1);
   }
@@ -85,13 +95,13 @@ void loop() {
 }
 
 int wich_azimuth(){ // возвращает номер активированного азимута
-  if (digitalRead(azimuth_1) == HIGH) {
+  if (digitalRead(azimuth_1) == LOW) {
     return 1;
   }
-  else if (digitalRead(azimuth_2) == HIGH) {
+  else if (digitalRead(azimuth_2) == LOW) {
     return 2;
   }
-  else if (digitalRead(azimuth_3) == HIGH) {
+  else if (digitalRead(azimuth_3) == LOW) {
     return 3;
   }
   else {
