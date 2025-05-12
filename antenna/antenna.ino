@@ -1,7 +1,5 @@
 /*
 Принимает запрос от бункера, отправялет в ответ состояние пинов азимутов и активирует пуск ракет.
-Отвечает: 0 - никакой азиимут не выставлен, 1-1, 2-2, 3-3
-В режиме ожидания обычно принимает false, для подрыва отправить true.
 */
 
 #include "SPI.h"
@@ -19,6 +17,9 @@
 #define led_red 6
 #define led_green 7
 
+// D8 сирена
+#define alarm 8
+
 // D9-D13 заняты радиомодулем
 # define CE 9
 # define CSN 10
@@ -31,22 +32,22 @@ int message;
 long switch_off;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600); // TODO
 
   pinMode(led_red, OUTPUT);
   pinMode(led_green, OUTPUT);
   pinMode(fire_pin, OUTPUT);
+  pinMode(alarm, OUTPUT);
   pinMode(azimuth_1, INPUT_PULLUP);
   pinMode(azimuth_2, INPUT_PULLUP);
   pinMode(azimuth_3, INPUT_PULLUP);
 
+  digitalWrite(led_red, 1);
+  delay(1000); // для адекватной работы радио
   while (!radio.begin()) {// ждем инициализацию радио
-    Serial.println("radio hardware is not responding!");
-    delay(50);
-    digitalWrite(led_red, 0);
-    delay(50);
-    digitalWrite(led_red, 1);
+    Serial.println("radio hardware is not responding!"); //TODO
   }
+  digitalWrite(led_red, 0);
 
   radio.setAutoAck(1);
   radio.setRetries(0, 15);
@@ -58,7 +59,7 @@ void setup() {
   radio.setPALevel (RF24_PA_LOW);
   radio.openReadingPipe(1, address[0]);
   radio.startListening();
-  Serial.println("setup done");
+  Serial.println("setup done"); //TODO
 
 }
 
@@ -67,21 +68,16 @@ void loop() {
 
   if (radio.available(&pipeNo)) { // если что-то пришло на радиоканал
     radio.read(&message, sizeof(message));  // чиатем входящий сигнал
-    Serial.print("Got: ");
-    Serial.println(message);
     radio.writeAckPayload(pipeNo, &report, sizeof(report));
-    Serial.print("Sent: ");
-    Serial.println(report);
 
     if (message) { // если получили true - взрываем
+      digitalWrite(alarm, 1);
+      delay(3000);
+      digitalWrite(alarm, 0);
       digitalWrite(fire_pin, 1);
-      switch_off = millis();
-
+      delay(1000);
+      digitalWrite(fire_pin, 0);
     }
-  }
-
-  if (millis() - switch_off > 1000) {
-    digitalWrite(fire_pin, 0);
   }
 
   if (wich_azimuth() != 0) { // индикация светодиодами наведения на азимут
