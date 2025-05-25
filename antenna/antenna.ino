@@ -29,7 +29,8 @@ RF24 radio(CE, CSN);  // "создать" модуль на пинах 9 и 10
 byte pipeNo;
 byte address[][6] = {"1Node", "2Node"}; //возможные номера труб
 int message;
-long switch_off;
+long time_alarm;
+long time_fire;
 
 void setup() {
   Serial.begin(9600); // TODO
@@ -56,7 +57,7 @@ void setup() {
   radio.setPayloadSize(2); // int размером 2 байта
   radio.setChannel(0x60);
   radio.setDataRate(RF24_1MBPS);
-  radio.setPALevel (RF24_PA_LOW);
+  radio.setPALevel (RF24_PA_MAX);
   radio.openReadingPipe(1, address[0]);
   radio.startListening();
   Serial.println("setup done"); //TODO
@@ -72,11 +73,12 @@ void loop() {
 
     if (message) { // если получили true - взрываем
       digitalWrite(alarm, 1);
-      delay(3000);
+      delay(3000); // ну и ладно
       digitalWrite(alarm, 0);
       digitalWrite(fire_pin, 1);
-      delay(1000);
+      delay(1000); // ну и пускай!
       digitalWrite(fire_pin, 0);
+      message = 0;
     }
   }
 

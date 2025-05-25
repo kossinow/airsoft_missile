@@ -99,7 +99,6 @@ void setup() {
   EEPROM.get(4, deactivation_pin);
   EEPROM.get(6, azimuth_settings);
   EEPROM.get(8, min);
-  min = 1; // TODO заглушка
 
   // настройки радиомодуля
   while (!radio.begin()) {// ждем инициализацию радио
@@ -114,7 +113,7 @@ void setup() {
   radio.setPayloadSize(2);
   radio.setChannel(0x60);
   radio.setDataRate(RF24_1MBPS);
-  radio.setPALevel (RF24_PA_LOW); // уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
+  radio.setPALevel (RF24_PA_MAX); // уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
   radio.openWritingPipe(address[0]);
   radio.stopListening();   // не слушаем радиоэфир, мы передатчик
   
